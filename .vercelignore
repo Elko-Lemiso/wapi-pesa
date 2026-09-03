@@ -1,0 +1,15 @@
+# Real statement data never enters a deployment archive.
+MPESA_Statement_*.pdf
+*.pdf
+statement-extracted.txt
+
+# Local-only credentials and build artifacts.
+.env
+.env.*
+!.env.example
+.next/
+.cache/
+*.tsbuildinfo
+
+# Diagnostic utilities depend on private local fixtures.
+scripts/
