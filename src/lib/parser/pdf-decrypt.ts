@@ -55,60 +55,66 @@ export async function decryptAndExtractText(
     useSystemFonts: true,
   });
 
-  let doc: Awaited<typeof loadingTask.promise>;
   try {
-    doc = await loadingTask.promise;
-  } catch (err) {
-    // Convert pdfjs's password exceptions into our own typed error so the
-    // API layer can give the user the right next step. pdfjs uses string
-    // names rather than instanceof checks across realms, hence the duck-
-    // typing here.
-    const name = (err as { name?: string } | null)?.name ?? "";
-    const message = String((err as { message?: string } | null)?.message ?? "");
-    const looksLikePassword =
-      name === "PasswordException" ||
-      /password/i.test(message);
-    if (looksLikePassword) {
-      throw new PasswordRequiredError({ missing: !trimmed, cause: err });
+    let doc: Awaited<typeof loadingTask.promise>;
+    try {
+      doc = await loadingTask.promise;
+    } catch (err) {
+      // Convert pdfjs's password exceptions into our own typed error so the
+      // API layer can give the user the right next step. pdfjs uses string
+      // names rather than instanceof checks across realms, hence the duck-
+      // typing here.
+      const name = (err as { name?: string } | null)?.name ?? "";
+      const message = String(
+        (err as { message?: string } | null)?.message ?? ""
+      );
+      const looksLikePassword =
+        name === "PasswordException" ||
+        /password/i.test(message);
+      if (looksLikePassword) {
+        throw new PasswordRequiredError({ missing: !trimmed, cause: err });
+      }
+      throw err;
     }
-    throw err;
-  }
-  const pages: ExtractedPage[] = [];
+    const pages: ExtractedPage[] = [];
 
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const textContent = await page.getTextContent();
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const textContent = await page.getTextContent();
 
-    const items = textContent.items.filter(
-      (item): item is TextItem => "str" in item
-    );
+      const items = textContent.items.filter(
+        (item): item is TextItem => "str" in item
+      );
 
-    const lineMap = new Map<number, { x: number; str: string }[]>();
-    for (const item of items) {
-      const y = Math.round(item.transform[5]);
-      if (!lineMap.has(y)) lineMap.set(y, []);
-      lineMap.get(y)!.push({ x: item.transform[4], str: item.str });
+      const lineMap = new Map<number, { x: number; str: string }[]>();
+      for (const item of items) {
+        const y = Math.round(item.transform[5]);
+        if (!lineMap.has(y)) lineMap.set(y, []);
+        lineMap.get(y)!.push({ x: item.transform[4], str: item.str });
+      }
+
+      const sortedYs = [...lineMap.keys()].sort((a, b) => b - a);
+      const lines: string[] = [];
+
+      for (const y of sortedYs) {
+        const lineItems = lineMap.get(y)!.sort((a, b) => a.x - b.x);
+        const line = lineItems.map((item) => item.str).join(" ").trim();
+        if (line) lines.push(line);
+      }
+
+      pages.push({ pageNumber: i, lines });
     }
 
-    const sortedYs = [...lineMap.keys()].sort((a, b) => b - a);
-    const lines: string[] = [];
+    return pages;
+  } finally {
+    // Cleanup must also run when PDF loading or page extraction fails. Do not
+    // let a secondary teardown failure hide the original parse result.
+    await loadingTask.destroy().catch(() => undefined);
 
-    for (const y of sortedYs) {
-      const lineItems = lineMap.get(y)!.sort((a, b) => a.x - b.x);
-      const line = lineItems.map((item) => item.str).join(" ").trim();
-      if (line) lines.push(line);
+    try {
+      data.fill(0);
+    } catch {
+      // Buffer may already be detached by pdfjs
     }
-
-    pages.push({ pageNumber: i, lines });
   }
-
-  await doc.destroy();
-
-  try {
-    data.fill(0);
-  } catch {
-    // Buffer may already be detached by pdfjs
-  }
-
-  return pages;
 }

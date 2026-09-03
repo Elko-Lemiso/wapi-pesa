@@ -32,9 +32,10 @@ jobs:
           fi
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "22.13"
           cache: npm
       - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run lint -- --no-cache
       - run: npm test
       - run: npm run typecheck

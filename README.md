@@ -19,7 +19,7 @@ The parser supports **personal M-Pesa Pay statement PDFs only**. It does not sup
 
 ## Safe default configuration
 
-Copy the example environment file and start the app:
+Use Node.js 22.13 or newer, then copy the example environment file and start the app:
 
 ```bash
 cp .env.example .env.local
@@ -80,6 +80,7 @@ npm test
 npm run lint
 npm run typecheck
 npm run build
+npm audit --omit=dev --audit-level=high
 ```
 
 Tests that exercise the full parser use [`src/test/fixtures/synthetic-personal-statement.txt`](src/test/fixtures/synthetic-personal-statement.txt). Every identity, date, identifier, and amount in that file is invented.
