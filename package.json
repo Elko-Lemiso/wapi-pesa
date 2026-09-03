@@ -25,7 +25,7 @@
     "@openrouter/sdk": "^0.12.35",
     "@react-pdf/renderer": "^4.5.1",
     "drizzle-orm": "^0.45.2",
-    "next": "16.2.6",
+    "next": "16.2.11",
     "pdfjs-dist": "^5.7.284",
     "react": "19.2.4",
     "react-dom": "19.2.4",
